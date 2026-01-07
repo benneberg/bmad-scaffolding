@@ -1,0 +1,831 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>BMAD Scaffold</title>
+    <style>
+        :root {
+            /* Color Palette - Mobile First & Modern */
+            --primary: #2563EB;
+            --primary-dark: #1E40AF;
+            --secondary: #64748B;
+            --bg-body: #F1F5F9;
+            --bg-card: #FFFFFF;
+            --text-main: #0F172A;
+            --text-muted: #64748B;
+            --border: #E2E8F0;
+            
+            /* Phase Colors */
+            --phase-planning: #3B82F6; /* Blue */
+            --phase-arch: #8B5CF6;    /* Purple */
+            --phase-exec: #10B981;    /* Green */
+            --phase-qa: #F59E0B;      /* Amber */
+
+            /* Spacing & Radius */
+            --radius-md: 12px;
+            --radius-lg: 16px;
+            --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+            --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1);
+            
+            /* Mobile Layout */
+            --header-height: 60px;
+            --nav-height: 60px;
+            --safe-area-bottom: env(safe-area-inset-bottom);
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-main);
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* --- Typography --- */
+        h1, h2, h3 { margin: 0; font-weight: 600; }
+        p { margin: 0 0 1rem 0; line-height: 1.5; color: var(--text-muted); font-size: 0.95rem; }
+        small { font-size: 0.8rem; color: var(--text-muted); }
+
+        /* --- Components --- */
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 0.75rem 1rem;
+            border-radius: var(--radius-md);
+            font-weight: 500;
+            font-size: 0.95rem;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+            gap: 0.5rem;
+            width: 100%;
+        }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:active { background: var(--primary-dark); transform: scale(0.98); }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); }
+        .btn-ghost { background: transparent; color: var(--text-muted); width: auto; padding: 0.5rem; }
+        
+        .card {
+            background: var(--bg-card);
+            border-radius: var(--radius-lg);
+            padding: 1rem;
+            box-shadow: var(--shadow-sm);
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
+        }
+
+        .tag {
+            display: inline-block;
+            padding: 0.25rem 0.6rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            background: #E2E8F0;
+            color: var(--text-muted);
+            margin-right: 0.25rem;
+        }
+
+        /* --- Views --- */
+        #app-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            padding-bottom: calc(var(--nav-height) + 2rem + var(--safe-area-bottom));
+            scroll-behavior: smooth;
+        }
+
+        .view-section { display: none; animation: fadeIn 0.3s ease; }
+        .view-section.active { display: block; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(5px); } to { opacity: 1; transform: translateY(0); } }
+
+        /* --- Dashboard (Project Registry) --- */
+        .project-list { list-style: none; padding: 0; margin: 0; }
+        .project-item {
+            background: var(--bg-card);
+            padding: 1rem;
+            border-radius: var(--radius-lg);
+            margin-bottom: 1rem;
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        .project-item:active { transform: scale(0.99); }
+        .project-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 0.5rem; }
+        .status-dot { height: 8px; width: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+        
+        /* --- Project Detail (The Scaffold) --- */
+        .phase-stepper {
+            display: flex;
+            overflow-x: auto;
+            padding: 0.5rem 0 1rem 0;
+            gap: 1rem;
+            margin-bottom: 0.5rem;
+            -ms-overflow-style: none;
+            scrollbar-width: none;
+        }
+        .phase-stepper::-webkit-scrollbar { display: none; }
+        
+        .phase-step {
+            flex: 0 0 auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            opacity: 0.5;
+            transition: all 0.3s;
+            min-width: 70px;
+            position: relative;
+        }
+        .phase-step.active { opacity: 1; }
+        .phase-step.locked { pointer-events: none; }
+        .phase-step.locked .step-icon { background: #CBD5E1; color: #fff; }
+        
+        .step-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: white;
+            border: 2px solid currentColor;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 0.25rem;
+            font-weight: bold;
+            color: currentColor;
+        }
+        .step-label { font-size: 0.7rem; font-weight: 600; text-align: center; }
+
+        /* Phase specific colors */
+        .step-1 { color: var(--phase-planning); }
+        .step-2 { color: var(--phase-arch); }
+        .step-3 { color: var(--phase-exec); }
+        .step-4 { color: var(--phase-qa); }
+
+        .artifact-card {
+            border-left: 4px solid var(--border);
+            position: relative;
+        }
+        .artifact-card[data-type="prd"] { border-left-color: var(--phase-planning); }
+        .artifact-card[data-type="arch"] { border-left-color: var(--phase-arch); }
+        .artifact-card[data-type="code"] { border-left-color: var(--phase-exec); }
+        .artifact-card[data-type="qa"] { border-left-color: var(--phase-qa); }
+
+        .artifact-header { display: flex; justify-content: space-between; margin-bottom: 0.5rem; }
+        .agent-badge { 
+            font-size: 0.65rem; 
+            text-transform: uppercase; 
+            letter-spacing: 0.5px; 
+            background: #F8FAFC; 
+            padding: 2px 6px; 
+            border-radius: 4px; 
+            border: 1px solid var(--border);
+        }
+
+        .code-block {
+            background: #1E293B;
+            color: #E2E8F0;
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-family: monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            margin-top: 0.5rem;
+        }
+
+        /* --- FAB --- */
+        .fab {
+            position: fixed;
+            bottom: calc(var(--nav-height) + 1rem + var(--safe-area-bottom));
+            right: 1.5rem;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            background: var(--primary);
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: var(--shadow-md);
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            z-index: 10;
+        }
+        .fab:active { transform: scale(0.9); }
+
+        /* --- Bottom Nav --- */
+        .bottom-nav {
+            height: calc(var(--nav-height) + var(--safe-area-bottom));
+            background: var(--bg-card);
+            border-top: 1px solid var(--border);
+            display: flex;
+            justify-content: space-around;
+            padding-top: 0.5rem;
+            padding-bottom: var(--safe-area-bottom);
+            position: fixed;
+            bottom: 0;
+            width: 100%;
+            z-index: 20;
+        }
+        .nav-item {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            text-decoration: none;
+            font-size: 0.7rem;
+            gap: 4px;
+            background: none;
+            border: none;
+            cursor: pointer;
+        }
+        .nav-item.active { color: var(--primary); }
+        .nav-item svg { width: 24px; height: 24px; fill: currentColor; }
+
+        /* --- Modals --- */
+        .modal-overlay {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 100;
+            display: none;
+            align-items: flex-end; /* Bottom sheet on mobile */
+            justify-content: center;
+        }
+        .modal-overlay.open { display: flex; }
+        
+        .modal {
+            background: var(--bg-card);
+            width: 100%;
+            max-width: 600px;
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+            padding: 1.5rem;
+            animation: slideUp 0.3s ease;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+        @media(min-width: 600px) {
+            .modal-overlay { align-items: center; }
+            .modal { border-radius: var(--radius-lg); width: 500px; }
+        }
+
+        @keyframes slideUp { from { transform: translateY(100%); } to { transform: translateY(0); } }
+
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; font-weight: 500; }
+        .form-control {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            font-size: 1rem;
+            background: #F8FAFC;
+        }
+        .form-control:focus { outline: 2px solid var(--primary); background: #fff; }
+
+        /* --- Agent Simulation Loader --- */
+        .agent-sim {
+            text-align: center;
+            padding: 2rem;
+        }
+        .spinner {
+            width: 40px; height: 40px;
+            border: 4px solid #E2E8F0;
+            border-top: 4px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 1rem auto;
+        }
+        @keyframes spin { 100% { transform: rotate(360deg); } }
+
+    </style>
+</head>
+<body>
+
+    <header style="height: var(--header-height); background: var(--bg-card); border-bottom: 1px solid var(--border); display: flex; align-items: center; padding: 0 1rem; position: fixed; top: 0; width: 100%; z-index: 15;">
+        <div id="header-content" style="display: flex; align-items: center; width: 100%;">
+            <span style="font-weight: 700; font-size: 1.1rem;">BMAD Scaffold</span>
+        </div>
+        <button id="back-btn" class="btn-ghost" style="display: none; margin-left: auto;">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor"><path d="M15.41 7.41L14 6l-6 6 6 6 1.41-1.41L10.83 12z"/></svg>
+        </button>
+    </header>
+
+    <div id="app-container" style="margin-top: var(--header-height);">
+        
+        <!-- VIEW: DASHBOARD -->
+        <section id="view-dashboard" class="view-section active">
+            <div style="margin-bottom: 1.5rem;">
+                <h2>My Projects</h2>
+                <p>Micro projects built with BMAD discipline.</p>
+            </div>
+
+            <ul id="project-list" class="project-list">
+                <!-- Projects injected here -->
+            </ul>
+            
+            <div id="empty-state" style="text-align: center; padding: 3rem 1rem; display: none;">
+                <div style="font-size: 3rem; margin-bottom: 1rem;">🚀</div>
+                <h3>No projects yet</h3>
+                <p>Create a new micro-project to start the BMAD lifecycle.</p>
+            </div>
+        </section>
+
+        <!-- VIEW: PROJECT DETAIL -->
+        <section id="view-project" class="view-section">
+            <div class="card" style="padding: 0.5rem 1rem; margin-bottom: 1rem;">
+                <h2 id="proj-detail-name" style="font-size: 1.2rem;">Project Name</h2>
+                <div class="project-meta">
+                    <div id="proj-detail-tags">
+                        <!-- Tags -->
+                    </div>
+                    <small id="proj-detail-date">Oct 24</small>
+                </div>
+            </div>
+
+            <!-- Phase Stepper -->
+            <div class="phase-stepper">
+                <div class="phase-step step-1 active" id="step-1" onclick="app.switchPhase(1)">
+                    <div class="step-icon">1</div>
+                    <span class="step-label">Plan</span>
+                </div>
+                <div class="phase-step step-2" id="step-2" onclick="app.switchPhase(2)">
+                    <div class="step-icon">2</div>
+                    <span class="step-label">Arch</span>
+                </div>
+                <div class="phase-step step-3" id="step-3" onclick="app.switchPhase(3)">
+                    <div class="step-icon">3</div>
+                    <span class="step-label">Exec</span>
+                </div>
+                <div class="phase-step step-4" id="step-4" onclick="app.switchPhase(4)">
+                    <div class="step-icon">4</div>
+                    <span class="step-label">QA</span>
+                </div>
+            </div>
+
+            <!-- Phase Content Area -->
+            <div id="phase-content-area">
+                <!-- Dynamic Content -->
+            </div>
+        </section>
+
+    </div>
+
+    <!-- FAB for Dashboard -->
+    <button id="fab-add" class="fab" onclick="app.openCreateModal()">+</button>
+
+    <!-- BOTTOM NAV -->
+    <nav class="bottom-nav">
+        <button class="nav-item active" onclick="app.navTo('dashboard')">
+            <svg viewBox="0 0 24 24"><path d="M3 13h8V3H3v10zm0 8h8v-6H3v6zm10 0h8V11h-8v10zm0-18v6h8V3h-8z"/></svg>
+            <span>Projects</span>
+        </button>
+        <button class="nav-item" onclick="app.showToast('Feature coming soon')">
+            <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z"/></svg>
+            <span>Learn</span>
+        </button>
+    </nav>
+
+    <!-- MODAL: Create Project -->
+    <div id="modal-create" class="modal-overlay">
+        <div class="modal">
+            <h3 style="margin-bottom: 1rem;">New Micro-Project</h3>
+            <form onsubmit="app.handleCreateProject(event)">
+                <div class="form-group">
+                    <label>Project Name</label>
+                    <input type="text" name="name" class="form-control" placeholder="e.g. Notes CRUD API" required>
+                </div>
+                <div class="form-group">
+                    <label>Description</label>
+                    <textarea name="desc" class="form-control" rows="2" placeholder="What are we building?" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label>Tech Stack</label>
+                    <input type="text" name="stack" class="form-control" placeholder="Node, SQLite, Vanilla JS">
+                </div>
+                <div style="display: flex; gap: 1rem;">
+                    <button type="button" class="btn btn-outline" onclick="app.closeModals()">Cancel</button>
+                    <button type="submit" class="btn btn-primary">Create Scaffold</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- MODAL: Artifact Runner / Viewer -->
+    <div id="modal-artifact" class="modal-overlay">
+        <div class="modal">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
+                <h3 id="artifact-title">Artifact</h3>
+                <button class="btn-ghost" onclick="app.closeModals()">✕</button>
+            </div>
+            
+            <div id="artifact-content-display">
+                <!-- Content goes here -->
+            </div>
+
+            <div style="margin-top: 1.5rem; display: flex; gap: 0.5rem;">
+                <button class="btn btn-primary" id="artifact-action-btn">Generate</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- Data & State Management ---
+        const store = {
+            projects: [
+                {
+                    id: 1,
+                    name: 'Task Tracker CLI',
+                    desc: 'A simple command line tool to manage daily tasks.',
+                    stack: 'Node.js, Inquirer, Chalk',
+                    createdAt: new Date().toLocaleDateString(),
+                    phase: 1, // 1=Plan, 2=Arch, 3=Exec, 4=QA
+                    artifacts: [
+                        { id: 'a1', phase: 1, type: 'prd', title: 'PRD v1', agent: 'Analyst', content: '# Task Tracker PRD\n\n## Goal\nAllow users to add, list, and complete tasks via terminal.\n\n## User Stories\n- As a user, I want to add a task.\n- As a user, I want to see my task list.\n\n## Success Criteria\n- Can run `node index.js add "Buy milk"`', timestamp: 'Just now' }
+                    ]
+                }
+            ],
+            currentProjectId: null,
+            currentPhase: 1
+        };
+
+        // --- Phase Configuration ---
+        const PHASES = {
+            1: { 
+                name: 'Planning', 
+                color: 'var(--phase-planning)',
+                artifacts: [
+                    { key: 'prd', title: 'PRD', agent: 'Analyst Agent' },
+                    { key: 'stories', title: 'User Stories', agent: 'PM Agent' },
+                    { key: 'criteria', title: 'Success Criteria', agent: 'PM Agent' }
+                ]
+            },
+            2: { 
+                name: 'Architecture', 
+                color: 'var(--phase-arch)',
+                artifacts: [
+                    { key: 'overview', title: 'Architecture Overview', agent: 'Architect Agent' },
+                    { key: 'stack', title: 'Tech Stack Decisions', agent: 'Architect Agent' },
+                    { key: 'datamodel', title: 'Data Model', agent: 'Architect Agent' }
+                ]
+            },
+            3: { 
+                name: 'Execution', 
+                color: 'var(--phase-exec)',
+                artifacts: [
+                    { key: 'implementation', title: 'Implementation Plan', agent: 'Dev Agent' },
+                    { key: 'code', title: 'Core Code', agent: 'Dev Agent' }
+                ]
+            },
+            4: { 
+                name: 'QA & Review', 
+                color: 'var(--phase-qa)',
+                artifacts: [
+                    { key: 'tests', title: 'Test Cases', agent: 'QA Agent' },
+                    { key: 'edge', title: 'Edge Cases', agent: 'QA Agent' },
+                    { key: 'limits', title: 'Known Limitations', agent: 'QA Agent' }
+                ]
+            }
+        };
+
+        // --- Application Logic ---
+        const app = {
+            init: () => {
+                app.renderDashboard();
+            },
+
+            // Navigation
+            navTo: (viewName) => {
+                document.querySelectorAll('.view-section').forEach(el => el.classList.remove('active'));
+                document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+                
+                if (viewName === 'dashboard') {
+                    document.getElementById('view-dashboard').classList.add('active');
+                    document.querySelector('.nav-item:nth-child(1)').classList.add('active');
+                    document.getElementById('fab-add').style.display = 'flex';
+                    document.getElementById('back-btn').style.display = 'none';
+                    app.renderDashboard();
+                    store.currentProjectId = null;
+                }
+            },
+
+            openProject: (id) => {
+                store.currentProjectId = id;
+                const project = store.projects.find(p => p.id === id);
+                store.currentPhase = project.phase; // Resume where left off
+
+                document.getElementById('view-dashboard').classList.remove('active');
+                document.getElementById('view-project').classList.add('active');
+                document.getElementById('fab-add').style.display = 'none';
+                document.getElementById('back-btn').style.display = 'block';
+                document.getElementById('back-btn').onclick = () => app.navTo('dashboard');
+
+                app.renderProjectDetail();
+            },
+
+            switchPhase: (phaseNum) => {
+                const project = store.projects.find(p => p.id === store.currentProjectId);
+                
+                // Enforce BMAD Logic: Can only go to Phase 2 if Phase 1 has artifacts, etc.
+                // Allow free movement backwards.
+                if (phaseNum > project.phase + 1) {
+                    app.showToast(`Complete Phase ${project.phase} first!`, 'error');
+                    return;
+                }
+
+                store.currentPhase = phaseNum;
+                if (phaseNum > project.phase) {
+                    project.phase = phaseNum; // Progress saved
+                }
+                app.renderProjectDetail();
+            },
+
+            // Rendering
+            renderDashboard: () => {
+                const list = document.getElementById('project-list');
+                const empty = document.getElementById('empty-state');
+                list.innerHTML = '';
+
+                if (store.projects.length === 0) {
+                    empty.style.display = 'block';
+                    return;
+                }
+                empty.style.display = 'none';
+
+                store.projects.forEach(p => {
+                    const li = document.createElement('li');
+                    li.className = 'project-item';
+                    li.onclick = () => app.openProject(p.id);
+                    
+                    const phaseInfo = PHASES[p.phase];
+                    
+                    li.innerHTML = `
+                        <div style="font-weight: 600; font-size: 1.05rem;">${p.name}</div>
+                        <p style="margin: 0.25rem 0 0.5rem 0; font-size: 0.85rem;">${p.desc}</p>
+                        <div class="project-meta">
+                            <span class="tag" style="color:${phaseInfo.color}; border: 1px solid ${phaseInfo.color}20; background: ${phaseInfo.color}10;">
+                                <span class="status-dot" style="background:${phaseInfo.color}"></span>
+                                ${phaseInfo.name}
+                            </span>
+                            <span class="tag">${p.stack.split(',')[0].trim()}</span>
+                        </div>
+                    `;
+                    list.appendChild(li);
+                });
+            },
+
+            renderProjectDetail: () => {
+                const project = store.projects.find(p => p.id === store.currentProjectId);
+                
+                // Header
+                document.getElementById('proj-detail-name').innerText = project.name;
+                document.getElementById('proj-detail-tags').innerHTML = project.stack.split(',').map(s => `<span class="tag">${s.trim()}</span>`).join('');
+                document.getElementById('proj-detail-date').innerText = project.createdAt;
+
+                // Stepper UI
+                for(let i=1; i<=4; i++) {
+                    const step = document.getElementById(`step-${i}`);
+                    step.classList.remove('active', 'locked');
+                    if (i === store.currentPhase) step.classList.add('active');
+                    if (i > project.phase + 1) step.classList.add('locked');
+                }
+
+                // Phase Content
+                const container = document.getElementById('phase-content-area');
+                const phaseData = PHASES[store.currentPhase];
+                
+                let html = `<h3 style="margin: 1rem 0; color: ${phaseData.color}">${phaseData.name} Artifacts</h3>`;
+                
+                // Check for existing artifacts
+                const existingArtifacts = project.artifacts.filter(a => a.phase === store.currentPhase);
+                
+                if (existingArtifacts.length === 0) {
+                    html += `
+                        <div class="card" style="text-align:center; border: 2px dashed var(--border); background: transparent; box-shadow: none;">
+                            <p style="margin-bottom:1rem">No artifacts yet for this phase.</p>
+                            <button class="btn btn-primary" style="width: auto; margin: 0 auto;" onclick="app.runAgentFlow('${phaseData.artifacts[0].key}', '${phaseData.artifacts[0].title}', '${phaseData.artifacts[0].agent}')">
+                                Start ${phaseData.name} Phase
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    phaseData.artifacts.forEach(artDef => {
+                        const art = existingArtifacts.find(a => a.key === artDef.key);
+                        if (art) {
+                            // Show artifact
+                            html += `
+                                <div class="card artifact-card" data-type="${artDef.key}" onclick="app.openArtifactModal('${artDef.key}', '${artDef.title}')">
+                                    <div class="artifact-header">
+                                        <strong>${artDef.title}</strong>
+                                        <span class="agent-badge">${art.agent}</span>
+                                    </div>
+                                    <p style="white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin:0; color: var(--text-main); font-size: 0.85rem;">
+                                        ${art.content.substring(0, 80).replace(/#/g, '').replace(/\*/g, '')}...
+                                    </p>
+                                    <small>${art.timestamp}</small>
+                                </div>
+                            `;
+                        } else {
+                            // Button to generate next artifact
+                            html += `
+                                <button class="btn btn-outline" style="margin-bottom: 0.5rem; border-style: dashed;" onclick="app.runAgentFlow('${artDef.key}', '${artDef.title}', '${artDef.agent}')">
+                                    + Generate ${artDef.title}
+                                </button>
+                            `;
+                        }
+                    });
+                    
+                    // Phase Complete Action
+                    if (existingArtifacts.length === phaseData.artifacts.length && store.currentPhase < 4) {
+                         html += `
+                            <div style="margin-top: 1.5rem; text-align: center;">
+                                <button class="btn btn-primary" onclick="app.switchPhase(${store.currentPhase + 1})">
+                                    Proceed to ${PHASES[store.currentPhase + 1].name} &rarr;
+                                </button>
+                            </div>
+                        `;
+                    } else if (store.currentPhase === 4) {
+                         html += `
+                            <div style="margin-top: 1.5rem; text-align: center;">
+                                <div class="tag" style="font-size: 1rem; padding: 0.5rem 1rem; background: var(--phase-exec); color: white;">
+                                    Project Complete
+                                </div>
+                            </div>
+                        `;
+                    }
+                }
+
+                container.innerHTML = html;
+            },
+
+            // Modals & Forms
+            openCreateModal: () => {
+                document.getElementById('modal-create').classList.add('open');
+            },
+            closeModals: () => {
+                document.querySelectorAll('.modal-overlay').forEach(el => el.classList.remove('open'));
+            },
+            
+            handleCreateProject: (e) => {
+                e.preventDefault();
+                const fd = new FormData(e.target);
+                const newProj = {
+                    id: Date.now(),
+                    name: fd.get('name'),
+                    desc: fd.get('desc'),
+                    stack: fd.get('stack') || 'Vanilla JS',
+                    createdAt: new Date().toLocaleDateString(),
+                    phase: 1,
+                    artifacts: []
+                };
+                store.projects.unshift(newProj);
+                app.closeModals();
+                e.target.reset();
+                app.navTo('dashboard');
+                app.showToast('Project Created');
+            },
+
+            // Agent Runner Logic
+            runAgentFlow: (key, title, agentName) => {
+                // Open modal in "loading" state first
+                document.getElementById('modal-artifact').classList.add('open');
+                document.getElementById('artifact-title').innerText = title;
+                const contentDiv = document.getElementById('artifact-content-display');
+                const btn = document.getElementById('artifact-action-btn');
+
+                contentDiv.innerHTML = `
+                    <div class="agent-sim">
+                        <div class="spinner"></div>
+                        <p>${agentName} is working...</p>
+                        <small>Analyzing requirements, consulting BMAD protocols.</small>
+                    </div>
+                `;
+                btn.style.display = 'none';
+
+                // Simulate API delay
+                setTimeout(() => {
+                    const generatedContent = app.getMockContent(key, store.currentProjectId);
+                    
+                    // Transition to edit/view mode
+                    contentDiv.innerHTML = `
+                        <div style="margin-bottom: 0.5rem; font-size: 0.8rem; color: var(--primary);">
+                            <svg viewBox="0 0 24 24" style="width:14px; vertical-align:middle; fill:currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+                            Generated by ${agentName}
+                        </div>
+                        <textarea id="artifact-editor" class="form-control" rows="10" style="font-family: monospace; font-size: 0.85rem; line-height: 1.4;">${generatedContent}</textarea>
+                    `;
+                    
+                    btn.style.display = 'block';
+                    btn.innerText = 'Save Artifact';
+                    btn.onclick = () => app.saveArtifact(key, title, agentName);
+
+                }, 1500);
+            },
+
+            saveArtifact: (key, title, agentName) => {
+                const content = document.getElementById('artifact-editor').value;
+                const project = store.projects.find(p => p.id === store.currentProjectId);
+                
+                // Upsert artifact
+                const existingIdx = project.artifacts.findIndex(a => a.phase === store.currentPhase && a.key === key);
+                const artObj = {
+                    id: Date.now(),
+                    phase: store.currentPhase,
+                    key: key,
+                    type: key, // simple mapping for css
+                    title: title,
+                    agent: agentName,
+                    content: content,
+                    timestamp: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                };
+
+                if (existingIdx >= 0) {
+                    project.artifacts[existingIdx] = artObj;
+                } else {
+                    project.artifacts.push(artObj);
+                }
+
+                app.closeModals();
+                app.renderProjectDetail();
+                app.showToast('Artifact Saved');
+            },
+
+            openArtifactModal: (key, title) => {
+                const project = store.projects.find(p => p.id === store.currentProjectId);
+                const art = project.artifacts.find(a => a.phase === store.currentPhase && a.key === key);
+                
+                document.getElementById('modal-artifact').classList.add('open');
+                document.getElementById('artifact-title').innerText = title;
+                const contentDiv = document.getElementById('artifact-content-display');
+                const btn = document.getElementById('artifact-action-btn');
+
+                contentDiv.innerHTML = `
+                     <div style="margin-bottom: 0.5rem; font-size: 0.8rem; color: var(--secondary);">
+                        Last edited by ${art.agent} • ${art.timestamp}
+                    </div>
+                    <textarea id="artifact-editor" class="form-control" rows="12" style="font-family: monospace; font-size: 0.85rem; line-height: 1.4;">${art.content}</textarea>
+                `;
+                
+                btn.style.display = 'block';
+                btn.innerText = 'Update Artifact';
+                btn.onclick = () => app.saveArtifact(key, title, art.agent);
+            },
+
+            // Helpers
+            showToast: (msg, type='info') => {
+                // Simple toast implementation
+                const div = document.createElement('div');
+                div.style.cssText = `
+                    position: fixed; bottom: 80px; left: 50%; transform: translateX(-50%);
+                    background: #333; color: #fff; padding: 0.75rem 1.5rem; border-radius: 30px;
+                    font-size: 0.9rem; z-index: 200; opacity: 0; transition: opacity 0.3s;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+                `;
+                div.innerText = msg;
+                if(type === 'error') div.style.background = '#EF4444';
+                document.body.appendChild(div);
+                
+                requestAnimationFrame(() => div.style.opacity = '1');
+                setTimeout(() => {
+                    div.style.opacity = '0';
+                    setTimeout(() => div.remove(), 300);
+                }, 2500);
+            },
+
+            getMockContent: (type, pid) => {
+                // Generates dummy markdown based on type
+                const pName = store.projects.find(p => p.id === pid).name;
+                const templates = {
+                    'prd': `# Product Requirements Document: ${pName}\n\n## Problem Statement\nUsers need a streamlined way to manage micro-tasks without opening a heavy application.\n\n## Goals\n1. Speed: < 100ms load time.\n2. Simplicity: Text-based UI.\n\n## Functional Requirements\n- Create task\n- List tasks\n- Delete task\n\n## Non-Functional\n- Must run on Node 18+`,
+                    'stories': `# User Stories\n\n1. **Create Task**\n   - As a user, I want to type \`add <task>\` so that it is saved to memory.\n   - Acceptance: Task appears in list.\n\n2. **List Tasks**\n   - As a user, I want to type \`list\` to see all pending items.`,
+                    'criteria': `# Success Criteria\n\n- [ ] CLI commands are recognized\n- [ ] Data persists to local JSON file\n- [ ] Zero external dependencies (besides dev tools)\n- [ ] Help command works`,
+                    'overview': `# Architecture Overview\n\nThe application follows a simple **MVC-lite** pattern suitable for CLI tools.\n\n1. **Controller**: \`index.js\` parses input arguments.\n2. **Model**: \`TaskManager.js\` handles file I/O and state.\n3. **View**: \`Printer.js\` formats output to console.`,
+                    'stack': `# Tech Stack Decisions\n\n- **Runtime**: Node.js (Bun compatible)\n- **Storage**: JSON files (No DB overhead for micro-project)\n- **CLI Library**: \`commander\` or \`yargs\` (TBD: keeping it vanilla for now?)`,
+                    'datamodel': `# Data Model\n\n\`\`\`json\n{\n  "tasks": [\n    {\n      "id": "uuid-v4",\n      "content": "Buy milk",\n      "status": "pending",\n      "createdAt": 1698123456789\n    }\n  ]\n}\n\`\`\``,
+                    'implementation': `# Implementation Plan\n\n1. **Setup**: Initialize npm, install \`chalk\`.\n2. **File Structure**:\n   - src/index.js\n   - src/models.js\n   - data/tasks.json\n3. **Core Logic**: Implement \`add\` command first.`,
+                    'code': `// Core Implementation Snippet\n\nconst fs = require('fs');\n\nclass TaskManager {\n  constructor(path) {\n    this.path = path;\n  }\n\n  add(task) {\n    const tasks = this.list();\n    tasks.push({ id: Date.now(), task, status: 'pending' });\n    fs.writeFileSync(this.path, JSON.stringify(tasks));\n  }\n}`,
+                    'tests': `# Test Cases\n\n1. **Happy Path**: Add task -> Verify in list.\n2. **Error**: Add empty task -> Should show error.\n3. **Persistence**: Restart app -> Task still there.`,
+                    'edge': `# Edge Cases\n\n- What if the JSON file is corrupted?\n- What if two instances try to write at the same time? (Lock file needed?)\n- Extremely long task descriptions.`,
+                    'limits': `# Known Limitations\n\n- No user authentication (local only).\n- No collaborative features.\n- JSON storage is not ACID compliant.`
+                };
+                return templates[type] || `# ${type}\n\nDraft content for ${pName}...`;
+            }
+        };
+
+        // Start
+        app.init();
+
+    </script>
+</body>
+</html>
